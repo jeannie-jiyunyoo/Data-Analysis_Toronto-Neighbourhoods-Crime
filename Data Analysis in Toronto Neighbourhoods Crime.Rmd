@@ -1,0 +1,151 @@
+---
+title: "Data Analysis in Toronto Neighbourhoods Crime: The Correlation Between the Population and Assualts"
+author : "Jiyun Yoo"
+date: October 25, 2021
+output:
+  pdf_document:
+    latex_engine: xelatex
+    
+---
+
+## Introduction
+
+```{r warning=FALSE, message=FALSE,include=FALSE}
+library(openintro)
+library(tidyverse)
+library(rstanarm)
+library(bayestestR)
+library(bayesplot)
+library(papeR)
+library(rstan)
+library(ggmcmc)
+library(knitr)
+
+crime_rate=read.csv("~/Desktop/STA302 Final Project/Neighbourhood Crime Rates.csv")
+crime_rate=crime_rate%>%select(1:3,5,8)
+head(crime_rate)
+summary(crime_rate)
+colnames(crime_rate)<-c("Id","OBJECTID","Neighborhood","Population","Assualt")
+
+```
+
+ Crime assault incidents in Canada has been raising the awareness of its significance of severity and prevention, which has been impacting the public attitude. As a result of raising awareness of the crime incidents, it is crucial to determine the cause of the assaults. Here we explore the current state of the assaults by neighbourhoods in Toronto on 2016, released by Open Data Toronto. Given the resources available in Toronto, it is reasonable to hypothesize that there is a high correlation between Population and Assault.
+
+## Data
+
+ The given data from Toronto Open Data's portal is the count of assaults by neighbourhoods in Toronto on 2016. This data contains population at each neighbourhood and the count of assaults on 2016. Note there are 140 neighbourhoods in Toronto. The summary of this data show below. Through We assume that there is a high correlation between Population and Assault. 
+ 
+ 
+```{r,echo=F, results='asis', warning=FALSE, message=FALSE}
+xtable(summarize(crime_rate,type='numeric'))
+
+```
+
+
+ Suppose $\text{Y}_i$ be count of assaults and $\text{X}_i$ be population at $i$th neighbourhood($i=1,2,\dots,140$). We try to explain this data by following model : 
+ 
+ 
+$$ 
+\text{Y}_i=\alpha+\beta\text{X}_i+\epsilon_{i}
+$$
+ 
+ where $\epsilon_i,i=1,2,\dots,140$ is i.i.d. random variable from population with $\text{E}(\epsilon_i)=0, \text{Var}(\epsilon_i)=\sigma^2$. If we assume this population as normal distribution, we estimate $\alpha,\beta$ by least square method, so the model may be called as linear model(linear simple regression). This model consists of explainable part and error term. Explainable part is $\text{Y}=\alpha+\beta\text{X}$. One can clearly see that this part implies that the count of robberies can be explained linearly by population, which is the assumption of our model. The error term $\epsilon$ means the part of model that cannot be said by explainable part. This is usually some unknown effects. So overall, we may try to explain the count of robberies by linear effect of population, but assume there are other effects that we do not know. However, let us now turn to the Bayesian version and show that under the reference prior, we will obtain the posterior distributions of $\alpha$ and $\beta$ analogous with the frequentist OLS results. The Bayesian model starts with the same model as the classical frequentist approach : $\text{Y}_i=\alpha+\beta\text{X}_i+\epsilon_i$. with the assumption that the errors,$\epsilon_{i}$, are independent and identically distributed as normal random variables with mean zero and constant variance $\sigma^{2}$. This assumption is exactly the same as in the classical inference case for testing and constructing confidence intervals for $\alpha$ and $\beta$. Under the assumption that the errors $\epsilon_{i}$ are normally distributed with constant variance $\sigma^{2}$, we have for the random variable of each response $Y_{i}$, conditioning on the observed data $X_{i}$ and the parameters $\alpha$, $\beta$ and $\sigma^{2}$, is normally distributed:
+ $$
+ Y_{i}|X_{i},\alpha,\beta,\sigma^{2} \sim N(\alpha+\beta X_{i},\sigma^{2}) \quad i=1,\cdots,n
+ $$
+ From this likelihood, we make the Bayesian posterior distribution results of $\alpha $ and $\beta$ with maximized likelihood function.the posterior credible intervals are in fact numerically equivalent to the confidence intervals from the classical frequentist OLS analysis
+ 
+```{r,echo=F,fig.cap="Scatter plot with the count of Assualt & Population"} 
+#plot of data
+ggplot(data=crime_rate,mapping=aes(x=Population,y=Assualt))+geom_point()+
+  ylab("Assault 2016")
+``` 
+
+ Our assumption of linearity may be appropriate in figure1. If we are to explain response variable by linearity of explanatory variable, there should be either positive or negative relationship between two variables. (e.g. if slope is positive, value of response should increase as that of explanatory increases.) In our data, the above scatterplot says positive relationship is likely to exists between two variables. Intuitively, as population increases, more crimes including assault likely to increase. Hence our assumption of model may be appropriate.
+
+## Methods
+For simple linear regression analysis, alpha and beta were fitted using LSE. The resulting values are -26.2304 for $\alpha$ (Intercept) and 0.007319 for $\beta$ (Population). 
+ The above table shows the result of regression. As a consequence, we have $\hat{\alpha}=-29.87808,\hat{\beta}=0.00831$. This results implies there is positive relationship between assaults and population, though the magnitude of effect does not seem large.(0.000831 is not large). To interpret the result, one may say as one unit increase in population, 0.008 assaults are likely to occur. This model is reasonable. To verify this, one should see the p-value of $\hat{\beta}$. We know as p-value gets smaller, our $\hat{\beta}$ is more likely a stronger evidence in favor of the hypothesis. Since $p-value$ is extremely small, it can be affirmed that there is indeed effect of population on assaults. Below plot shows the fitted model may be good enough to explain our data.
+ 
+```{r,echo=F,fig.cap="Simple linear regression"}
+lm.fit = lm(Assualt ~ Population, 
+            data = crime_rate)
+
+pop=1:70000; assault=lm.fit$coefficients[2]*pop+lm.fit$coefficients[1]
+fitted_model=tibble(pop,assault)
+
+ggplot(data=crime_rate,mapping=aes(x=Population,y=Assualt))+geom_point()+
+  geom_line(data=fitted_model,mapping=aes(x=pop,y=assault),color="blue")+
+  ylab("Assault 2016")+xlab("Population")
+```
+
+
+```{r,echo=F,results='asis'}
+lm.fit = lm(Assualt ~ Population, 
+            data = crime_rate)
+
+kable(prettify(summary(lm.fit)))
+
+```
+
+
+Similarly, the mean (intercept) of $\alpha$ distributions is -26.33807, and the mean (Population) of $\beta$ distributions is 0.007323 in Bayesian models . As mentioned above, simple regression analysis shows that the posterior distribution of the Bayesian model is very similar to the OLS value.
+
+```{r,echo=F,results='asis'}
+bayes.fit = stan_glm(Assualt ~ Population, 
+                     data = crime_rate, refresh = 0)
+kable(round(bayes.fit$stan_summary,3))
+
+```
+
+ 
+  Except for some outliers, the fitted model is indeed explaining our data quite well.
+  
+## Results
+
+The diagnostic results of the simple linear regression analysis are shown in Figure 3 below. First, the error must be independent. Residuals vs Fitted Plot show that residuals are distributed independently. Secondly, the normality of the residuals must be satisfied. This can be seen using the Normal Q-Q plot. The shape of the plot should be close to the straight line, but the tail is curved, so it cannot be said to satisfy normality.
+```{r,echo=F,fig.cap= "Diagnostics of Simple Regression"}
+par(mfrow=c(2,2))
+plot(lm.fit)
+par(mfrow=c(1,1))
+```
+
+
+```{r,echo=F,fig.cap="Posterior Distribution of alpha,beta"}
+grid = seq(min(crime_rate$Population),
+           max(crime_rate$Population), 
+           length.out = 100)
+output1 = confint(lm.fit)
+output2 = describe_posterior(bayes.fit)
+y.pred = data.frame("pred" = cbind(1, grid) %*% c(lm.fit$coefficients),
+                    "lower" = cbind(1, grid) %*% c(output1[,1]),
+                    "upper" = cbind(1, grid) %*% c(output1[,2]),
+                    "bayes" = cbind(1, grid) %*% c(bayes.fit$coefficients),
+                    "B.lower" = cbind(1, grid) %*% c(output2$CI_low),
+                    "B.upper" = cbind(1, grid) %*% c(output2$CI_high))
+mcmc_dens(bayes.fit, pars = c("(Intercept)")) +
+  vline_at(col="red", v = lm.fit$coefficients[1])
+mcmc_dens(bayes.fit, pars = c("Population")) +
+  vline_at(col="red", v = lm.fit$coefficients[2])
+```
+
+The frequency and Bayes estimation are almost identical. However, there is a difference in terms of intercept. The red line is frequency, it should be in the middle of the estimation in order to be equal. The size of the two values is not different. However, the Bayesian model has the advantage of knowing the distribution of alpha and beta. This is because depending on the distribution of the parameters I have, I can determine the reliability of the values. Furthermore, the simple linear regression model is not a good model because it previously satisfied the independence of the residuals but did not satisfy the normality. Therefore, a Bayesian regression model may be preferred between the two models.
+
+
+## Conclusion
+
+Good quality data is arguably just as important to making statistically-backed conclusions as the data-analysis portion itself. Data which is thoughtfully curated, accessible, complete, and up-to-date could save statisticians and data scientists the time and energy needed to clean and understand unruly data, and instead dedicate that energy towards making useful conclusions and finding data-driven solutions to problems. 
+
+Here, we analyzed a sample of the dataset from Toronto Open Data's portal in order to determine the correlation between the population and assaults in terms of the crime rate. Using the simple linear regression and Bayesian regression, we were able to estimate the positive relationship between assaults and population as one may say as one unit increase in population, 0.008 assaults are likely to occur. The simple regression analysis demonstrates that the posterior distribution of the Bayesian model is similar to the OLS value since the mean (intercept) of $\alpha$ distributions is -26.33807, and the mean (Population) of $\beta$ distributions is 0.007323 in Bayesian models. Regarding determining the most appropriate model, it seems that a Bayesian regression model would be preferred to the simple linear regression model due to its the normality not being satisfied the independence of the regression model.
+
+As we increasingly turn to finding data-driven solutions to various significant problems regarding healthcare, homelessness, crime, and more, it is important that we aim to gather and create high quality datasets. Next steps to consider include more analysis on if there are specific aspects where Toronto Open Data portal datasets particularly lack. Thus, it may be worthwhile to observe if these results are generalizable to other open data portals or if they are instead limited to the Toronto Open Data portal. 
+
+  
+All analysis for this report was programmed using `R version 4.0.3`. 
+
+## Bibliography
+
+1. Toronto Police Services (Sept 18, 2020) *Neighbourhood Crime Rates*.  [https://open.toronto.ca/dataset/neighbourhood-crime-rates/] Open Government License - Toronto
+
+2. Dekking, F. M., et al. (2005) *A Modern Introduction to Probability and Statistics: Understanding why and how.* Springer Science & Business Media.
+
